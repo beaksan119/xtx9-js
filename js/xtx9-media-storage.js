@@ -1,36 +1,177 @@
-console.log('start');
-document.addEventListener('DOMContentLoaded', () => {
-    const mediaContainer = document.getElementById('sf-media-storage');
-    const jsonUrl = `https://beaksan119.pages.dev/pub/xtx9-media-storage.json?v=${new Date().getTime()}`;
+class SfMediaStorage {
+    /**
+     * @param {string} containerSelector - 미디어 리스트를 표시할 컨테이너의 CSS 선택자
+     */
+    constructor(containerSelector) {
+        this.container = document.querySelector(containerSelector);
+        this.jsonUrl = 'https://beaksan119.pages.dev/pub/xtx9-media-storage.json';
+        
+        if (!this.container) {
+            console.error(`'${containerSelector}' 선택자에 해당하는 요소를 찾을 수 없습니다.`);
+            return;
+        }
 
-    // JSON 데이터를 텍스트 형태로 가져오기
-    fetch(jsonUrl)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            // .json() 대신 .text()를 사용하여 원본 텍스트를 그대로 받습니다.
-            console.log('Fetching JSON data from:', jsonUrl);
-            return response.text();
-        })
-        .then(textData => {
-            // 로딩 메시지 제거
-            mediaContainer.innerHTML = ''; 
-            
-            // <pre> 태그를 사용하여 JSON 텍스트의 형식을 유지하며 출력합니다.
-            const preElement = document.createElement('pre');
-            preElement.style.whiteSpace = 'pre-wrap'; // 긴 줄이 자동으로 줄바꿈되도록 설정
-            preElement.style.wordBreak = 'break-all'; // 단어가 길어도 강제로 줄바꿈
-            preElement.style.padding = '15px';
-            preElement.style.backgroundColor = '#282c34';
-            preElement.style.color = '#abb2bf';
-            preElement.style.borderRadius = '5px';
-            preElement.textContent = textData;
-            
-            mediaContainer.appendChild(preElement);
-        })
-        .catch(error => {
-            console.error('Error fetching data:', error);
-            mediaContainer.innerHTML = `<p style="color: #ff6b6b; text-align: center;">데이터를 불러오는 데 실패했습니다: ${error.message}</p>`;
+        this.init();
+    }
+
+    /**
+     * 클래스 초기화 및 데이터 로딩 시작
+     */
+    async init() {
+        this.showLoading();
+        try {
+            const data = await this.fetchData();
+            const allImages = this._extractImages(data.tree);
+            this.renderImages(allImages);
+        } catch (error) {
+            console.error('Error initializing SfMediaStorage:', error);
+            this.showError('미디어를 불러오는 데 실패했습니다.');
+        }
+    }
+
+    /**
+     * JSON 데이터를 서버에서 가져옵니다.
+     * @returns {Promise<object>} - 파싱된 JSON 데이터
+     */
+    async fetchData() {
+        const urlWithCacheBuster = `${this.jsonUrl}?v=${new Date().getTime()}`;
+        const response = await fetch(urlWithCacheBuster);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+    }
+
+    /**
+     * 화면에 로딩 메시지를 표시합니다.
+     */
+    showLoading() {
+        this.container.innerHTML = `<p class="loading-message">미디어를 불러오는 중입니다...</p>`;
+    }
+
+    /**
+     * 화면에 오류 메시지를 표시합니다.
+     * @param {string} message - 표시할 오류 메시지
+     */
+    showError(message) {
+        this.container.innerHTML = `<p style="color: #ff6b6b; text-align: center;">${message}</p>`;
+    }
+
+    /**
+     * 이미지 객체 배열을 받아 HTML 요소를 생성하고 화면에 렌더링합니다.
+     * @param {Array<object>} images - 이미지 객체 배열
+     */
+    renderImages(images) {
+        this.container.innerHTML = ''; // 로딩 메시지 제거
+
+        if (images.length === 0) {
+            this.container.innerHTML = '<p>표시할 이미지가 없습니다.</p>';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+
+        images.forEach(image => {
+            const mediaItem = this._createMediaElement(image);
+            fragment.appendChild(mediaItem);
         });
+
+        this.container.appendChild(fragment);
+    }
+    
+    /**
+     * 개별 미디어 아이템 HTML 요소를 생성합니다.
+     * @param {object} image - 개별 이미지 데이터
+     * @returns {HTMLElement} - 생성된 div.media-item 요소
+     */
+    _createMediaElement(image) {
+        const mediaItem = document.createElement('div');
+        mediaItem.className = 'media-item';
+        mediaItem.title = `[클릭하여 URL 복사]\n파일: ${image.filename}\n해상도: ${image.resolution}\n크기: ${(image.size / 1024).toFixed(2)} KB`;
+
+        const img = document.createElement('img');
+        img.src = image.thumburl;
+        img.alt = image.filename;
+        img.loading = 'lazy';
+
+        const filenameDiv = document.createElement('div');
+        filenameDiv.className = 'filename';
+        filenameDiv.textContent = image.name;
+
+        mediaItem.appendChild(img);
+        mediaItem.appendChild(filenameDiv);
+        
+        // 클릭 시 원본 이미지 URL 복사 (arrow function으로 this 컨텍스트 유지)
+        mediaItem.addEventListener('click', () => {
+            this.copyToClipboard(image.url);
+        });
+        
+        return mediaItem;
+    }
+
+    /**
+     * JSON 트리 구조에서 모든 이미지 객체를 재귀적으로 추출합니다.
+     * @private
+     * @param {object} node - 현재 트리 노드 (폴더 또는 파일)
+     * @returns {Array<object>} - 이미지 객체의 배열
+     */
+    _extractImages(node) {
+        let images = [];
+        if (node && node.children) {
+            for (const child of node.children) {
+                if (child.type === 'img') {
+                    images.push(child);
+                } else if (child.type === 'folder') {
+                    images = images.concat(this._extractImages(child)); // 재귀 호출
+                }
+            }
+        }
+        return images;
+    }
+
+    /**
+     * 텍스트를 클립보드에 복사하고 사용자에게 알림을 표시합니다.
+     * @param {string} text - 복사할 텍스트 (이미지 URL)
+     */
+    copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            this._showCopyNotification('이미지 URL이 복사되었습니다!');
+        }).catch(err => {
+            console.error('클립보드 복사 실패:', err);
+            this._showCopyNotification('복사에 실패했습니다.', true);
+        });
+    }
+
+    /**
+     * 화면에 알림 메시지를 잠시 보여줍니다.
+     * @private
+     * @param {string} message - 표시할 메시지
+     * @param {boolean} isError - 에러 메시지 여부
+     */
+    _showCopyNotification(message, isError = false) {
+        const existingNotif = document.querySelector('.copy-notification');
+        if (existingNotif) {
+            existingNotif.remove();
+        }
+
+        const notification = document.createElement('div');
+        notification.className = 'copy-notification';
+        notification.textContent = message;
+        if(isError) {
+            notification.style.backgroundColor = '#e74c3c';
+        }
+        document.body.appendChild(notification);
+
+        setTimeout(() => notification.classList.add('show'), 10);
+
+        setTimeout(() => {
+            notification.classList.remove('show');
+            notification.addEventListener('transitionend', () => notification.remove());
+        }, 2000);
+    }
+}
+
+// DOM이 완전히 로드된 후 클래스 인스턴스를 생성하여 실행합니다.
+document.addEventListener('DOMContentLoaded', () => {
+    new SfMediaStorage('#sf-media-storage');
 });
