@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             // .json() 대신 .text()를 사용하여 원본 텍스트를 그대로 받습니다.
+            console.log('Fetching JSON data from:', jsonUrl);
             return response.text();
         })
         .then(textData => {
