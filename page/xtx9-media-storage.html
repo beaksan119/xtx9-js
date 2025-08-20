@@ -3,22 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Xtx9 Media Storage</title>
-    <!-- CSS 파일 연결 -->
-    <link rel="stylesheet" href="https://beaksan119.pages.dev/css/xtx9-media-storage.css">
+    <title>XTX9 Media Storage</title>
+    <!-- CSS 파일 로드 (캐시 방지용 타임스탬프 추가) -->
+    <link id="theme-stylesheet" rel="stylesheet">
+    <style>
+        /* 초기 로딩 스타일 */
+        body { font-family: sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; color: #333; }
+        .loading-message { text-align: center; font-size: 1.2em; color: #888; padding: 50px 0; }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>미디어 스토리지</h1>
-    </header>
-    <main>
-        <!-- 썸네일 리스트가 이 안에 생성됩니다 -->
-        <div id="sf-media-storage">
-            <div class="loading-indicator">데이터를 불러오는 중입니다...</div>
-        </div>
-    </main>
 
-    <!-- JavaScript 파일 연결 -->
-    <script src="https://beaksan119.pages.dev/js/xtx9-media-storage.js"></script>
+    <header style="text-align: center; margin-bottom: 20px;">
+        <h1>Media Storage</h1>
+    </header>
+
+    <!-- 썸네일 리스트가 표시될 컨테이너 -->
+    <div id="sf-media-storage">
+        <p class="loading-message">미디어를 불러오는 중입니다...</p>
+    </div>
+
+    <!-- JS 파일 로드 (캐시 방지용 타임스탬프 추가) -->
+    <script id="main-script"></script>
+    <script>
+        // 동적으로 타임스탬프를 추가하여 스크립트와 스타일시트를 로드합니다.
+        const timestamp = new Date().getTime();
+        document.getElementById('theme-stylesheet').href = `https://beaksan119.pages.dev/css/xtx9-media-storage.css?v=${timestamp}`;
+        document.getElementById('main-script').src = `https://beaksan119.pages.dev/js/xtx9-media-storage.js?v=${timestamp}`;
+    </script>
 </body>
 </html>

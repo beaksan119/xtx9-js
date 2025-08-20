@@ -1,109 +1,135 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const storageContainer = document.getElementById('sf-media-storage');
-    const jsonUrl = 'https://beaksan119.pages.dev/pub/xtx9-media-storage.json';
-    
-    if (!storageContainer) {
-        console.error('Error: Target container #sf-media-storage not found.');
-        return;
-    }
+    const mediaContainer = document.getElementById('sf-media-storage');
+    const jsonUrl = `https://beaksan119.pages.dev/pub/xtx9-media-storage.json?v=${new Date().getTime()}`;
+    const imageDomain = 'https://xtx9.pages.dev/'; // JSON에 이미 있지만 만약을 위해 정의
 
-    /**
-     * JSON 데이터를 가져와서 UI를 렌더링하는 메인 함수
-     */
-    async function loadMedia() {
-        try {
-            const response = await fetch(jsonUrl);
+    // JSON 데이터 가져오기
+    fetch(jsonUrl)
+        .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            const data = await response.json();
+            return response.json();
+        })
+        .then(data => {
+            // 로딩 메시지 제거
+            mediaContainer.innerHTML = ''; 
             
-            // 중첩된 폴더 구조에서 모든 이미지 파일만 추출
-            const allImages = extractImagesFromTree(data.tree);
+            // 모든 이미지 파일을 재귀적으로 찾기
+            const allImages = extractImages(data.tree);
 
-            // 추출한 이미지 리스트를 화면에 렌더링
+            // 이미지 리스트 렌더링
             renderImages(allImages);
-
-        } catch (error) {
-            console.error('Failed to load or process media data:', error);
-            storageContainer.innerHTML = `<div class="error-message">데이터를 불러오는 데 실패했습니다.</div>`;
-        }
-    }
+        })
+        .catch(error => {
+            console.error('Error fetching or parsing data:', error);
+            mediaContainer.innerHTML = `<p style="color: #ff6b6b; text-align: center;">데이터를 불러오는 데 실패했습니다. 잠시 후 다시 시도해 주세요.</p>`;
+        });
 
     /**
-     * 재귀 함수: 중첩된 트리 구조를 탐색하여 모든 이미지 객체를 배열로 반환
-     * @param {object} node - 현재 탐색 중인 노드 (폴더 또는 파일)
-     * @returns {Array} - 이미지 객체들의 배열
+     * JSON 트리 구조에서 모든 이미지 객체를 재귀적으로 추출하는 함수
+     * @param {object} node - 현재 트리 노드 (폴더 또는 파일)
+     * @returns {Array} - 이미지 객체의 배열
      */
-    function extractImagesFromTree(node) {
+    function extractImages(node) {
         let images = [];
-
-        // 현재 노드가 이미지 타입이면 배열에 추가
-        if (node.type === 'img') {
-            images.push(node);
-        }
-
-        // 현재 노드가 자식(children)을 가지고 있으면 (즉, 폴더라면)
-        if (node.children && node.children.length > 0) {
-            // 각 자식에 대해 재귀적으로 함수를 호출하고 결과를 합침
+        if (node && node.children) {
             for (const child of node.children) {
-                images = images.concat(extractImagesFromTree(child));
+                if (child.type === 'img') {
+                    images.push(child);
+                } else if (child.type === 'folder') {
+                    images = images.concat(extractImages(child)); // 재귀 호출
+                }
             }
         }
-        
         return images;
     }
 
     /**
-     * 이미지 배열을 받아서 HTML 요소를 생성하고 컨테이너에 추가
-     * @param {Array} images - 렌더링할 이미지 객체 배열
+     * 이미지 객체 배열을 받아 HTML 요소를 생성하고 화면에 표시하는 함수
+     * @param {Array} images - 이미지 객체 배열
      */
     function renderImages(images) {
-        // 로딩 인디케이터 제거
-        storageContainer.innerHTML = '';
-        
         if (images.length === 0) {
-            storageContainer.innerHTML = `<div class="info-message">표시할 이미지가 없습니다.</div>`;
+            mediaContainer.innerHTML = '<p>표시할 이미지가 없습니다.</p>';
             return;
         }
 
-        const grid = document.createElement('div');
-        grid.className = 'media-grid';
+        const fragment = document.createDocumentFragment();
 
         images.forEach(image => {
-            // 각 이미지를 위한 HTML 요소 생성
-            const item = document.createElement('div');
-            item.className = 'media-item';
+            const mediaItem = document.createElement('div');
+            mediaItem.className = 'media-item';
+            mediaItem.title = `[클릭하여 URL 복사]\n파일: ${image.filename}\n해상도: ${image.resolution}\n크기: ${(image.size / 1024).toFixed(2)} KB`;
 
-            // 이미지 원본 링크
-            const link = document.createElement('a');
-            link.href = image.url; // 원본 이미지 URL
-            link.target = '_blank'; // 새 탭에서 열기
-            link.rel = 'noopener noreferrer';
-            
-            // 썸네일 이미지
             const img = document.createElement('img');
-            img.src = image.thumburl; // 썸네일 이미지 URL
+            img.src = image.thumburl; // 썸네일 URL 사용
             img.alt = image.filename;
-            img.loading = 'lazy'; // 이미지 지연 로딩으로 성능 향상
+            img.loading = 'lazy'; // 이미지 지연 로딩
 
-            // 파일 이름
-            const filename = document.createElement('div');
-            filename.className = 'filename';
-            filename.textContent = image.filename;
-            filename.title = image.filename; // 마우스를 올리면 전체 파일 이름 표시
+            const filenameDiv = document.createElement('div');
+            filenameDiv.className = 'filename';
+            filenameDiv.textContent = image.name;
 
-            // 요소들을 조립
-            link.appendChild(img);
-            item.appendChild(link);
-            item.appendChild(filename);
+            mediaItem.appendChild(img);
+            mediaItem.appendChild(filenameDiv);
             
-            grid.appendChild(item);
+            // 클릭 시 원본 이미지 URL 복사 이벤트 추가
+            mediaItem.addEventListener('click', () => {
+                copyToClipboard(image.url);
+            });
+            
+            fragment.appendChild(mediaItem);
         });
 
-        storageContainer.appendChild(grid);
+        mediaContainer.appendChild(fragment);
     }
 
-    // 미디어 로드 함수 실행
-    loadMedia();
+    /**
+     * 텍스트를 클립보드에 복사하고 사용자에게 알림을 표시하는 함수
+     * @param {string} text - 복사할 텍스트 (이미지 URL)
+     */
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            showCopyNotification('이미지 URL이 복사되었습니다!');
+        }).catch(err => {
+            console.error('클립보드 복사 실패:', err);
+            showCopyNotification('복사에 실패했습니다.', true);
+        });
+    }
+
+    /**
+     * 화면에 알림 메시지를 잠시 보여주는 함수
+     * @param {string} message - 표시할 메시지
+     * @param {boolean} isError - 에러 메시지 여부
+     */
+    function showCopyNotification(message, isError = false) {
+        // 기존 알림이 있다면 제거
+        const existingNotif = document.querySelector('.copy-notification');
+        if (existingNotif) {
+            existingNotif.remove();
+        }
+
+        const notification = document.createElement('div');
+        notification.className = 'copy-notification';
+        notification.textContent = message;
+        if(isError) {
+            notification.style.backgroundColor = '#e74c3c';
+        }
+        document.body.appendChild(notification);
+
+        // 애니메이션 효과
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 10);
+
+        // 2초 후 사라짐
+        setTimeout(() => {
+            notification.classList.remove('show');
+            // 애니메이션 종료 후 요소 제거
+            setTimeout(() => {
+                notification.remove();
+            }, 500);
+        }, 2000);
+    }
 });
