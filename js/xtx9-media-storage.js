@@ -1,3 +1,4 @@
+console.log('start');
 document.addEventListener('DOMContentLoaded', () => {
     const mediaContainer = document.getElementById('sf-media-storage');
     const jsonUrl = `https://beaksan119.pages.dev/pub/xtx9-media-storage.json?v=${new Date().getTime()}`;
