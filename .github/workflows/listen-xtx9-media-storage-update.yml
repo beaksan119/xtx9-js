@@ -8,6 +8,10 @@ on:
 jobs:
   sync-json-file:
     runs-on: ubuntu-latest
+    # [가장 중요한 수정]
+    # 이 작업(job)이 리포지토리의 콘텐츠(코드)에 대한 쓰기 권한을 갖도록 명시합니다.
+    permissions:
+      contents: write
     steps:
       # 1. beaksan119/xtx9-js 리포지토리를 체크아웃합니다.
       - name: Checkout current repository
