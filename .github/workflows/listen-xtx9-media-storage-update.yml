@@ -1,0 +1,43 @@
+name: Listen for Media JSON Update from xtx9
+
+on:
+  # 'media-json-updated' 타입의 repository_dispatch 이벤트를 수신합니다.
+  repository_dispatch:
+    types: [media-json-updated]
+
+jobs:
+  sync-json-file:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. beaksan119/xtx9-js 리포지토리를 체크아웃합니다.
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+
+      # 2. xtx9 리포지토리에서 최신 JSON 파일을 다운로드합니다.
+      - name: Download latest JSON from xtx9/xtx9-media-storage
+        run: |
+          curl -s -o latest-media-storage.json \
+          "https://raw.githubusercontent.com/xtx9/xtx9-media-storage/main/public/xtx9-media-storage.json"
+
+      # 3. 변경사항이 있을 경우 pub/ 폴더에 커밋 및 푸시합니다.
+      - name: Commit and push if changed
+        run: |
+          # [변경] 대상 파일 경로를 'pub/'로 수정합니다.
+          TARGET_FILE="pub/xtx9-media-storage.json"
+          
+          # [변경] 대상 디렉토리 'pub'가 없으면 생성합니다.
+          mkdir -p pub
+          touch "$TARGET_FILE"
+
+          if diff -q latest-media-storage.json "$TARGET_FILE"; then
+            echo "JSON 파일에 변경사항이 없습니다."
+          else
+            echo "JSON 파일 변경 감지. 업데이트를 진행합니다."
+            mv latest-media-storage.json "$TARGET_FILE"
+            
+            git config --global user.name 'GitHub Action'
+            git config --global user.email 'action@github.com'
+            git add "$TARGET_FILE"
+            git commit -m "chore: xtx9-media-storage.json 자동 동기화"
+            git push
+          fi
