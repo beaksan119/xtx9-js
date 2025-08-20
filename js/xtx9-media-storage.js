@@ -101,7 +101,6 @@ class SfMediaStorage {
         mediaItem.appendChild(img);
         mediaItem.appendChild(filenameDiv);
         
-        // 클릭 시 원본 이미지 URL 복사 (arrow function으로 this 컨텍스트 유지)
         mediaItem.addEventListener('click', () => {
             this.copyToClipboard(image.url);
         });
@@ -122,7 +121,7 @@ class SfMediaStorage {
                 if (child.type === 'img') {
                     images.push(child);
                 } else if (child.type === 'folder') {
-                    images = images.concat(this._extractImages(child)); // 재귀 호출
+                    images = images.concat(this._extractImages(child));
                 }
             }
         }
@@ -171,7 +170,17 @@ class SfMediaStorage {
     }
 }
 
-// DOM이 완전히 로드된 후 클래스 인스턴스를 생성하여 실행합니다.
-document.addEventListener('DOMContentLoaded', () => {
+// ===================================================================
+// 스크립트 실행 시점과 관계없이 안전하게 클래스 인스턴스를 생성하는 로직
+// ===================================================================
+const initializeMediaStorage = () => {
     new SfMediaStorage('#sf-media-storage');
-});
+};
+
+if (document.readyState === 'loading') {
+    // 문서가 아직 로딩 중이면, DOMContentLoaded 이벤트를 기다립니다.
+    document.addEventListener('DOMContentLoaded', initializeMediaStorage);
+} else {
+    // 문서가 이미 로드되었다면 (interactive 또는 complete 상태), 즉시 함수를 실행합니다.
+    initializeMediaStorage();
+}
